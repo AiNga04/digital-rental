@@ -1,8 +1,0 @@
-flowchart LR
-    Browser["Web Browser"] --> FE["Next.js Frontend"]
-    FE --> API["Spring Boot REST API"]
-    API --> PG["PostgreSQL Database"]
-    API --> Redis["Redis Token Blacklist / Cache"]
-    API --> Mail["SMTP Mail Service"]
-    API --> VNPay["VNPay Payment Gateway"]
-    API --> Uploads["Uploaded Identity / Product Files"]

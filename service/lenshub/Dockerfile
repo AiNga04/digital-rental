@@ -37,7 +37,7 @@ WORKDIR /app
 
 COPY --from=builder --chown=10001:10001 /workspace/lenshub.jar /app/lenshub.jar
 
-ENV SPRING_PROFILES_ACTIVE=prod \
+ENV SPRING_PROFILES_ACTIVE=dev \
     JAVA_TOOL_OPTIONS="-Xms256m -Xmx768m -XX:+ExitOnOutOfMemoryError -Djava.io.tmpdir=/tmp"
 
 USER 10001:10001
