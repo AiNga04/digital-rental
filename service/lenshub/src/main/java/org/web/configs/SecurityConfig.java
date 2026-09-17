@@ -105,10 +105,13 @@ public class SecurityConfig {
     }
 
     private List<String> parseAllowedOrigins() {
-        return Arrays.stream(allowedOrigins.split(","))
+        List<String> origins = new java.util.ArrayList<>(Arrays.stream(allowedOrigins.split(","))
                 .map(String::trim)
                 .filter(origin -> !origin.isBlank())
-                .toList();
+                .toList());
+        if (!origins.contains("https://lenshub.shop")) origins.add("https://lenshub.shop");
+        if (!origins.contains("https://www.lenshub.shop")) origins.add("https://www.lenshub.shop");
+        return origins;
     }
 
     @Bean
