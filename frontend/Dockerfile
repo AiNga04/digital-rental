@@ -10,8 +10,8 @@ RUN corepack enable pnpm
 
 WORKDIR /app
 
-# Copy các file khai báo thư viện vào
-COPY package.json pnpm-lock.yaml ./
+# Copy các file khai báo thư viện và cấu hình pnpm vào
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml* ./
 
 # Tải thư viện (dùng frozen-lockfile để cài đúng version như khi dev, không bị lệch)
 RUN pnpm install --frozen-lockfile
