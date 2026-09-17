@@ -76,6 +76,33 @@ services:
     mem_limit: 900m
     cpus: "1.0"
 
+  frontend:
+    image: ${FRONTEND_IMAGE}
+    container_name: lenshub_frontend_prod
+    env_file:
+      - ./frontend.prod.env
+    depends_on:
+      - backend
+    networks:
+      - lenshub_private
+    restart: unless-stopped
+    mem_limit: 500m
+    cpus: "0.5"
+
+  nginx:
+    image: nginx:alpine
+    container_name: lenshub_nginx_prod
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - frontend
+      - backend
+    networks:
+      - lenshub_private
+    restart: unless-stopped
+
 networks:
   lenshub_private:
     driver: bridge

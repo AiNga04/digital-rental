@@ -2,11 +2,12 @@ name: CD
 
 on:
   workflow_dispatch:
-    inputs:
-      image:
-        description: Exact GHCR image using sha-<commit> tag or sha256 digest
-        required: true
-        type: string
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+    branches:
+      - master
 
 permissions:
   contents: read
@@ -20,32 +21,40 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - name: Resolve image
-        id: image
-        shell: bash
-        env:
-          REQUESTED_IMAGE: ${{ inputs.image }}
-        run: |
-          image_name="ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/digital-rental-backend"
-          digest="${REQUESTED_IMAGE#"$image_name@sha256:"}"
-          sha_tag="${REQUESTED_IMAGE#"$image_name:sha-"}"
+      - name: Check out repository
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
 
-          if [[ "$REQUESTED_IMAGE" == "$image_name@sha256:$digest" && "$digest" =~ ^[0-9a-f]{64}$ ]]; then
-            echo "image=$REQUESTED_IMAGE" >> "$GITHUB_OUTPUT"
-          elif [[ "$REQUESTED_IMAGE" == "$image_name:sha-$sha_tag" && "$sha_tag" =~ ^[0-9a-f]{40}$ ]]; then
-            echo "image=$REQUESTED_IMAGE" >> "$GITHUB_OUTPUT"
-          else
-            echo "::error::Image must be $image_name@sha256:<64 hex> or $image_name:sha-<40 hex>"
-            exit 1
-          fi
+      - name: Copy docker files to VPS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
+          source: "docker/docker-compose.prod.yml,docker/nginx.conf"
+          target: "/home/${{ secrets.EC2_USERNAME }}/digital-rental"
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         with:
-          host: 165.232.168.251
-          username: lenshub
-          key: ${{ secrets.VPS_SSH_KEY }}
+          host: ${{ secrets.EC2_HOST }}
+          username: ${{ secrets.EC2_USERNAME }}
+          key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            /opt/lenshub/deploy.sh "${{ steps.image.outputs.image }}"
+            cd /home/${{ secrets.EC2_USERNAME }}/digital-rental/docker
+            
+            # Setup image tags
+            echo "BACKEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/digital-rental-backend:prod" > .env
+            echo "FRONTEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/digital-rental-frontend:prod" >> .env
+            
+            # Create empty env files if they don't exist yet (user should fill them later)
+            touch backend.prod.env frontend.prod.env
+            
+            # Login to GHCR to pull packages if they are private
+            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            
+            # Pull new images and restart
+            docker compose -f docker-compose.prod.yml pull
+            docker compose -f docker-compose.prod.yml up -d
