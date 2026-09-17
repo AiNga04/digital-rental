@@ -41,7 +41,7 @@ services:
     restart: unless-stopped
 
   minio-init:
-    image: minio/mc:latest
+    image: minio/mc:RELEASE.2024-05-28T17-19-04Z
     container_name: lenshub_minio_init_prod
     depends_on:
       minio:
