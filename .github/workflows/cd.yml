@@ -38,18 +38,25 @@ jobs:
 
       - name: Deploy to VPS
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
+        env:
+          REPO_OWNER: ${{ github.repository_owner }}
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          envs: REPO_OWNER
           script: |
             cd /home/${{ secrets.EC2_USERNAME }}/digital-rental/docker
             
-            # Setup image tags
-            echo "BACKEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/digital-rental-backend:prod" > .env
-            echo "FRONTEND_IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/digital-rental-frontend:prod" >> .env
+            # Setup image tags safely without overwriting other variables in .env
+            OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
+            touch .env
+            grep -v '^BACKEND_IMAGE=' .env | grep -v '^FRONTEND_IMAGE=' > .env.tmp || true
+            echo "BACKEND_IMAGE=ghcr.io/$OWNER/digital-rental-backend:prod" >> .env.tmp
+            echo "FRONTEND_IMAGE=ghcr.io/$OWNER/digital-rental-frontend:prod" >> .env.tmp
+            mv .env.tmp .env
             
-            # Create empty env files if they don't exist yet (user should fill them later)
+            # Create empty env files if they don't exist yet
             touch backend.prod.env frontend.prod.env
             
             # Login to GHCR to pull packages if they are private
