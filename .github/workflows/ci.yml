@@ -80,6 +80,7 @@ jobs:
       - backend
       - frontend
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Lấy mã nguồn
         uses: actions/checkout@v4
@@ -114,6 +115,7 @@ jobs:
     needs:
       - frontend
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - name: Lấy mã nguồn
         uses: actions/checkout@v4
