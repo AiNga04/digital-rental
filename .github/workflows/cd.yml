@@ -50,19 +50,25 @@ jobs:
             # Di chuyển vào thư mục dự án trên EC2
             cd /home/${{ secrets.EC2_USERNAME }}/digital-rental/docker
             
-            # Ghi đè file .env chính, truyền tên Image của bạn vào để docker-compose đọc được
-            echo "BACKEND_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/digital-rental-backend:prod" > .env
+            # Đảm bảo file .env tồn tại (để không lỗi nếu file chưa có)
+            touch .env
+            
+            # Xóa cấu hình image cũ (nếu có) để tránh bị lặp dòng
+            sed -i '/^BACKEND_IMAGE=/d' .env
+            sed -i '/^FRONTEND_IMAGE=/d' .env
+            
+            # Nối (append) tên Image mới vào cuối file .env mà KHÔNG làm mất các biến Database của bạn
+            echo "BACKEND_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/digital-rental-backend:prod" >> .env
             echo "FRONTEND_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/digital-rental-frontend:prod" >> .env
             
-            # Đảm bảo 2 file env này tồn tại để docker-compose không báo lỗi
-            # (Bạn cần điền biến môi trường thực tế vào 2 file này trực tiếp trên máy chủ EC2 nhé)
+            # Đảm bảo 2 file env này tồn tại
             touch backend.prod.env frontend.prod.env
             
-            # (Tuỳ chọn) Đăng nhập Docker Hub nếu kho chứa (repo) của bạn là PRIVATE
-            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
+            # (Tuỳ chọn) Đăng nhập Docker Hub (sử dụng sudo để tránh lỗi permission denied)
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | sudo docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
             
-            # Kéo (pull) bản cập nhật image mới nhất từ Docker Hub về máy
-            docker compose -f docker-compose.prod.yml pull
+            # Kéo (pull) bản cập nhật image mới nhất từ Docker Hub (dùng sudo)
+            sudo docker compose -f docker-compose.prod.yml pull
             
-            # Tái khởi động lại toàn bộ hệ thống bằng các image mới
-            docker compose -f docker-compose.prod.yml up -d
+            # Tái khởi động lại toàn bộ hệ thống bằng các image mới (dùng sudo)
+            sudo docker compose -f docker-compose.prod.yml up -d
