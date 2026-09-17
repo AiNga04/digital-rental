@@ -41,7 +41,7 @@ public class SecurityConfig {
     private final CustomAccessDeniedHandler accessDeniedHandler;
     private final CustomAuthenticationEntryPoint authenticationEntryPoint;
 
-    @Value("${app.cors.allowed-origins:https://www.lenshub.shop}")
+    @Value("${app.cors.allowed-origins:https://lenshub.shop,https://www.lenshub.shop}")
     private String allowedOrigins;
 
     @Bean

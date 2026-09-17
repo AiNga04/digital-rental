@@ -65,7 +65,7 @@ services:
     command:
       - |
         mc alias set local http://minio:9000 "$${MINIO_ROOT_USER}" "$${MINIO_ROOT_PASSWORD}"
-        mc admin config set local api cors_allow_origin="https://www.lenshub.shop"
+        mc admin config set local api cors_allow_origin="https://lenshub.shop,https://www.lenshub.shop"
         mc mb --ignore-existing "local/$${MINIO_BUCKET}"
         mc anonymous set none "local/$${MINIO_BUCKET}"
     restart: "no" # Chỉ chạy 1 lần lúc khởi động
