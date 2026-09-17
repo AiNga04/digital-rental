@@ -16,10 +16,10 @@ class ProductionProfileConfigTest {
     private final List<PropertySource<?>> propertySources = loadProductionProperties();
 
     @Test
-    void usesFlywayAndHibernateValidation() {
-        assertProperty("spring.flyway.enabled", "true");
+    void disablesFlywayAndUsesHibernateUpdate() {
+        assertProperty("spring.flyway.enabled", "false");
         assertProperty("spring.flyway.baseline-on-migrate", "${FLYWAY_BASELINE_ON_MIGRATE:false}");
-        assertProperty("spring.jpa.hibernate.ddl-auto", "validate");
+        assertProperty("spring.jpa.hibernate.ddl-auto", "update");
         assertProperty("spring.sql.init.mode", "never");
     }
 
