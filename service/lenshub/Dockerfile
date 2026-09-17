@@ -1,5 +1,3 @@
-# syntax=docker/dockerfile:1.7@sha256:a57df69d0ea827fb7266491f2813635de6f17269be881f696fbfdf2d83dda33e
-
 FROM --platform=$BUILDPLATFORM eclipse-temurin:17-jdk-alpine@sha256:638937c54b6d63f0973a20501973e7c433a36b1f22262bd2b25afa7be5ff8c4a AS builder
 
 WORKDIR /workspace
@@ -21,7 +19,7 @@ RUN --mount=type=cache,target=/root/.gradle \
 FROM --platform=$TARGETPLATFORM eclipse-temurin:17-jre-alpine@sha256:02320dd4ce20e243dfb915c686089cf9315c763084fafbb12d5c9993aee18b57
 
 ARG VCS_REF=unknown
-ARG SOURCE_URL=https://github.com/ZzZueszZ/digital-rental
+ARG SOURCE_URL=https://github.com/AiNga04/digital-rental
 
 LABEL org.opencontainers.image.title="LensHub Backend" \
       org.opencontainers.image.description="LensHub ecommerce and camera rental API" \
