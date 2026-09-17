@@ -68,6 +68,13 @@ jobs:
       - name: Build thử Frontend
         working-directory: frontend
         run: pnpm build
+        env:
+          NEXT_PUBLIC_E2EE_ENABLED: ${{ vars.NEXT_PUBLIC_E2EE_ENABLED }}
+          NEXT_PUBLIC_SERVER_JWK_X: ${{ vars.NEXT_PUBLIC_SERVER_JWK_X }}
+          NEXT_PUBLIC_SERVER_JWK_Y: ${{ vars.NEXT_PUBLIC_SERVER_JWK_Y }}
+          NEXT_PUBLIC_API_URL: ${{ vars.NEXT_PUBLIC_API_URL }}
+          NEXT_PUBLIC_GOOGLE_CLIENT_ID: ${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+          NEXT_PUBLIC_GOOGLE_REDIRECT_URI: ${{ vars.NEXT_PUBLIC_GOOGLE_REDIRECT_URI }}
 
   # ==========================================
   # Bước 3: Đẩy Image Backend lên Docker Hub
@@ -140,3 +147,10 @@ jobs:
           tags: |
             ${{ secrets.DOCKERHUB_USERNAME }}/digital-rental-frontend:prod
             ${{ secrets.DOCKERHUB_USERNAME }}/digital-rental-frontend:sha-${{ github.sha }}
+          build-args: |
+            NEXT_PUBLIC_E2EE_ENABLED=${{ vars.NEXT_PUBLIC_E2EE_ENABLED }}
+            NEXT_PUBLIC_SERVER_JWK_X=${{ vars.NEXT_PUBLIC_SERVER_JWK_X }}
+            NEXT_PUBLIC_SERVER_JWK_Y=${{ vars.NEXT_PUBLIC_SERVER_JWK_Y }}
+            NEXT_PUBLIC_API_URL=${{ vars.NEXT_PUBLIC_API_URL }}
+            NEXT_PUBLIC_GOOGLE_CLIENT_ID=${{ vars.NEXT_PUBLIC_GOOGLE_CLIENT_ID }}
+            NEXT_PUBLIC_GOOGLE_REDIRECT_URI=${{ vars.NEXT_PUBLIC_GOOGLE_REDIRECT_URI }}
