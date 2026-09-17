@@ -1,50 +1,53 @@
-FROM --platform=$BUILDPLATFORM eclipse-temurin:17-jdk-alpine@sha256:638937c54b6d63f0973a20501973e7c433a36b1f22262bd2b25afa7be5ff8c4a AS builder
+# ==========================================
+# Bước 1: Môi trường Build (Dịch mã nguồn)
+# ==========================================
+# Dùng bộ công cụ JDK 17 để dịch mã Java
+FROM eclipse-temurin:17-jdk-alpine AS builder
 
 WORKDIR /workspace
 
+# Copy các file cấu hình của Gradle vào trước để tải thư viện 
+# (Việc này giúp Docker cache lại thư viện, lần sau build sẽ rất nhanh)
 COPY gradle ./gradle
 COPY gradlew build.gradle settings.gradle ./
 
-RUN sed -i 's/\r$//' gradlew \
-    && chmod +x gradlew
-RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew --no-daemon dependencies
+# Sửa lỗi ký tự dòng \r của Windows (nếu có) và cấp quyền chạy cho gradlew
+RUN sed -i 's/\r$//' gradlew && chmod +x gradlew
 
+# Tải trước các thư viện về
+RUN ./gradlew --no-daemon dependencies
+
+# Copy thư mục chứa code thật sự vào
 COPY src/main ./src/main
 
-RUN --mount=type=cache,target=/root/.gradle \
-    ./gradlew --no-daemon clean bootJar \
-    && cp "$(find build/libs -maxdepth 1 -type f -name '*.jar' ! -name '*-plain.jar' -print -quit)" /workspace/lenshub.jar
+# Build mã nguồn ra thành một file chạy duy nhất (.jar)
+RUN ./gradlew --no-daemon clean bootJar \
+    && cp build/libs/*-SNAPSHOT.jar /workspace/lenshub.jar
 
-FROM --platform=$TARGETPLATFORM eclipse-temurin:17-jre-alpine@sha256:02320dd4ce20e243dfb915c686089cf9315c763084fafbb12d5c9993aee18b57
 
-ARG VCS_REF=unknown
-ARG SOURCE_URL=https://github.com/AiNga04/digital-rental
+# ==========================================
+# Bước 2: Môi trường Chạy (Production)
+# ==========================================
+# Thay vì dùng JDK nặng nề, ta chỉ dùng JRE (Java Runtime) cực nhẹ để chạy app.
+FROM eclipse-temurin:17-jre-alpine
 
-LABEL org.opencontainers.image.title="LensHub Backend" \
-      org.opencontainers.image.description="LensHub ecommerce and camera rental API" \
-      org.opencontainers.image.source="${SOURCE_URL}" \
-      org.opencontainers.image.revision="${VCS_REF}"
-
-RUN addgroup -S -g 10001 lenshub \
-    && adduser -S -D -H -u 10001 -G lenshub lenshub \
-    && mkdir -p /app \
-    && chown -R lenshub:lenshub /app
+# Bảo mật: Tạo một user riêng tên 'lenshub', không dùng quyền root của Docker.
+RUN addgroup -S lenshub && adduser -S lenshub -G lenshub
 
 WORKDIR /app
 
-COPY --from=builder --chown=10001:10001 /workspace/lenshub.jar /app/lenshub.jar
+# Chỉ copy đúng file lenshub.jar đã build ở Bước 1 sang đây. Bỏ lại toàn bộ source code!
+COPY --from=builder --chown=lenshub:lenshub /workspace/lenshub.jar /app/lenshub.jar
 
-ENV SPRING_PROFILES_ACTIVE=dev \
-    JAVA_TOOL_OPTIONS="-Xms256m -Xmx768m -XX:+ExitOnOutOfMemoryError -Djava.io.tmpdir=/tmp"
+# Cấu hình bộ nhớ RAM và profile chạy
+ENV SPRING_PROFILES_ACTIVE=prod
+ENV JAVA_OPTS="-Xms256m -Xmx768m"
 
-USER 10001:10001
+# Chỉ định Container chạy dưới quyền của user 'lenshub'
+USER lenshub:lenshub
 
+# Ứng dụng Spring Boot mở cổng 8080
 EXPOSE 8080
 
-HEALTHCHECK --interval=10s --timeout=5s --start-period=60s --retries=6 \
-    CMD wget -q -O /dev/null http://127.0.0.1:8080/api/actuator/health/readiness || exit 1
-
-STOPSIGNAL SIGTERM
-
-ENTRYPOINT ["java", "-jar", "/app/lenshub.jar"]
+# Lệnh khởi động app khi Container chạy
+ENTRYPOINT ["sh", "-c", "java $JAVA_OPTS -jar /app/lenshub.jar"]

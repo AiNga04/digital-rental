@@ -1,57 +1,77 @@
-FROM node:20-alpine AS base
+# ==========================================
+# Bước 1: Môi trường cài đặt thư viện (Dependencies)
+# ==========================================
+FROM node:20-alpine AS deps
+
+# Cài đặt pnpm
 ENV PNPM_HOME="/pnpm"
 ENV PATH="$PNPM_HOME:$PATH"
 RUN corepack enable pnpm
 
-# Install dependencies only when needed
-FROM base AS deps
-# Check https://github.com/nodejs/docker-node/tree/b4117f9333da4138b03a546ec926ef50a31506c3#nodealpine to understand why libc6-compat might be needed.
-RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Install dependencies based on the preferred package manager
-COPY package.json pnpm-lock.yaml* pnpm-workspace.yaml* ./
-RUN pnpm install --frozen-lockfile --ignore-scripts
+# Copy các file khai báo thư viện vào
+COPY package.json pnpm-lock.yaml ./
 
-# Rebuild the source code only when needed
-FROM base AS builder
+# Tải thư viện (dùng frozen-lockfile để cài đúng version như khi dev, không bị lệch)
+RUN pnpm install --frozen-lockfile
+
+# ==========================================
+# Bước 2: Môi trường Build mã nguồn Next.js
+# ==========================================
+FROM node:20-alpine AS builder
+
+# Bật pnpm lại cho môi trường này
+ENV PNPM_HOME="/pnpm"
+ENV PATH="$PNPM_HOME:$PATH"
+RUN corepack enable pnpm
+
 WORKDIR /app
+
+# Copy thư viện (node_modules) đã cài ở Bước 1 sang đây
 COPY --from=deps /app/node_modules ./node_modules
+
+# Copy toàn bộ code frontend của bạn vào
 COPY . .
 
-# Next.js telemetry
+# Tắt gửi dữ liệu phân tích về máy chủ Vercel (giúp build nhanh hơn)
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Bắt đầu quá trình build Next.js ra code production
 RUN pnpm run build
 
-# Production image, copy all the files and run next
-FROM base AS runner
+# ==========================================
+# Bước 3: Môi trường Chạy (Production)
+# ==========================================
+FROM node:20-alpine AS runner
+
 WORKDIR /app
 
+# Đặt biến môi trường báo hiệu đây là production
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Bảo mật: tạo user không có quyền root (quyền cao nhất) để chạy app
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Set the correct permission for prerender cache
-RUN mkdir .next
-RUN chown nextjs:nodejs .next
-
-# Automatically leverage output traces to reduce image size
-# https://nextjs.org/docs/advanced-features/output-file-tracing
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+# Copy thư mục public (chứa hình ảnh, favicon...)
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
 
+# Copy code đã được build ở chế độ standalone (siêu nhẹ, được tự sinh bởi Next.js)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+
+# Copy các file tĩnh CSS, JS (.next/static)
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Yêu cầu container chạy bằng user 'nextjs'
 USER nextjs
 
+# Mở cổng 3000
 EXPOSE 3000
 
 ENV PORT=3000
-# set hostname to localhost
 ENV HOSTNAME="0.0.0.0"
 
-# server.js is created by next build from the standalone output
-# https://nextjs.org/docs/pages/api-reference/next-config-js/output
+# Khi container khởi động sẽ chạy file server.js này (chỉ có khi build standalone)
 CMD ["node", "server.js"]

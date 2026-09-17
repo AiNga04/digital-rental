@@ -1,4 +1,5 @@
 services:
+  # 1. Cơ sở dữ liệu PostgreSQL
   lenshub-postgres:
     image: postgres:15-alpine
     container_name: lenshub_postgres_prod
@@ -7,11 +8,13 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_DB: ${POSTGRES_DB}
     volumes:
+      # Ánh xạ thư mục vật lý để dữ liệu không bị mất khi khởi động lại
       - postgres_data:/var/lib/postgresql/data
     networks:
       - lenshub_private
     restart: unless-stopped
 
+  # 2. Cache Redis (Tăng tốc độ truy xuất)
   lenshub-redis:
     image: redis:7-alpine
     container_name: lenshub_redis_prod
@@ -22,9 +25,11 @@ services:
       - lenshub_private
     restart: unless-stopped
 
+  # 3. Máy chủ lưu trữ file (S3 - MinIO)
   minio:
     image: quay.io/minio/minio:RELEASE.2024-05-28T17-19-04Z
     container_name: lenshub_minio_prod
+    # Cấu hình giao diện console ở cổng 9001
     command: server /data --console-address ":9001"
     ports:
       - "9000:9000"
@@ -43,6 +48,7 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # 3.1. Job tự động tạo bucket khi MinIO khởi động
   minio-init:
     image: quay.io/minio/mc:latest
     container_name: lenshub_minio_init_prod
@@ -62,10 +68,11 @@ services:
         mc admin config set local api cors_allow_origin="https://www.lenshub.shop"
         mc mb --ignore-existing "local/$${MINIO_BUCKET}"
         mc anonymous set none "local/$${MINIO_BUCKET}"
-    restart: "no"
+    restart: "no" # Chỉ chạy 1 lần lúc khởi động
 
+  # 4. Backend (Spring Boot) - Tải từ Docker Hub của bạn
   backend:
-    image: ${BACKEND_IMAGE}
+    image: ${BACKEND_IMAGE} # Sẽ được file cd.yml truyền vào, ví dụ: ngaem/digital-rental-backend:prod
     container_name: lenshub_backend_prod
     env_file:
       - ./backend.prod.env
@@ -79,8 +86,9 @@ services:
     mem_limit: 900m
     cpus: "1.0"
 
+  # 5. Frontend (Next.js) - Tải từ Docker Hub của bạn
   frontend:
-    image: ${FRONTEND_IMAGE}
+    image: ${FRONTEND_IMAGE} # Ví dụ: ngaem/digital-rental-frontend:prod
     container_name: lenshub_frontend_prod
     env_file:
       - ./frontend.prod.env
@@ -92,12 +100,14 @@ services:
     mem_limit: 500m
     cpus: "0.5"
 
+  # 6. Web Server Điều Hướng Nginx
   nginx:
     image: nginx:alpine
     container_name: lenshub_nginx_prod
     ports:
-      - "80:80"
+      - "80:80" # Mở cổng 80 cho web
     volumes:
+      # Load cấu hình điều hướng (api.lenshub.shop -> backend, lenshub.shop -> frontend)
       - ./nginx.conf:/etc/nginx/conf.d/default.conf:ro
     depends_on:
       - frontend
@@ -107,10 +117,12 @@ services:
     restart: unless-stopped
 
 networks:
+  # Mạng riêng biệt chỉ các container trong file này mới thấy nhau
   lenshub_private:
     driver: bridge
 
 volumes:
+  # Các ổ đĩa (ổ cứng ảo) để lưu dữ liệu vĩnh viễn
   postgres_data:
   redis_data:
   minio_data:

@@ -1,7 +1,10 @@
 name: CD
 
 on:
+  # Cho phép tự chạy bằng tay từ giao diện GitHub (Actions tab)
   workflow_dispatch:
+  
+  # Hoặc tự động chạy sau khi CI (Build & Push image) chạy thành công
   workflow_run:
     workflows: ["CI"]
     types:
@@ -11,7 +14,6 @@ on:
 
 permissions:
   contents: read
-  packages: read
 
 concurrency:
   group: production-deploy
@@ -21,47 +23,46 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     environment: production
+    # Chỉ chạy deploy nếu là do người dùng kích hoạt bằng tay hoặc CI (Build) vừa xong và không bị lỗi
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
     steps:
-      - name: Check out repository
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+      - name: Lấy mã nguồn
+        uses: actions/checkout@v4
 
-      - name: Copy docker files to VPS
+      - name: Copy các file cấu hình Docker lên máy chủ EC2
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
+          # Copy 2 file cần thiết lên VPS
           source: "docker/docker-compose.prod.yml,docker/nginx.conf"
           target: "/home/${{ secrets.EC2_USERNAME }}/digital-rental"
 
-      - name: Deploy to VPS
-        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
-        env:
-          REPO_OWNER: ${{ github.repository_owner }}
+      - name: SSH vào máy chủ EC2 và Deploy hệ thống
+        uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.EC2_HOST }}
           username: ${{ secrets.EC2_USERNAME }}
           key: ${{ secrets.EC2_SSH_KEY }}
-          envs: REPO_OWNER
           script: |
+            # Di chuyển vào thư mục dự án trên EC2
             cd /home/${{ secrets.EC2_USERNAME }}/digital-rental/docker
             
-            # Setup image tags safely without overwriting other variables in .env
-            OWNER=$(echo "$REPO_OWNER" | tr '[:upper:]' '[:lower:]')
-            touch .env
-            grep -v '^BACKEND_IMAGE=' .env | grep -v '^FRONTEND_IMAGE=' > .env.tmp || true
-            echo "BACKEND_IMAGE=ghcr.io/$OWNER/digital-rental-backend:prod" >> .env.tmp
-            echo "FRONTEND_IMAGE=ghcr.io/$OWNER/digital-rental-frontend:prod" >> .env.tmp
-            mv .env.tmp .env
+            # Ghi đè file .env chính, truyền tên Image của bạn vào để docker-compose đọc được
+            echo "BACKEND_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/digital-rental-backend:prod" > .env
+            echo "FRONTEND_IMAGE=${{ secrets.DOCKERHUB_USERNAME }}/digital-rental-frontend:prod" >> .env
             
-            # Create empty env files if they don't exist yet
+            # Đảm bảo 2 file env này tồn tại để docker-compose không báo lỗi
+            # (Bạn cần điền biến môi trường thực tế vào 2 file này trực tiếp trên máy chủ EC2 nhé)
             touch backend.prod.env frontend.prod.env
             
-            # Login to GHCR to pull packages if they are private
-            echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
+            # (Tuỳ chọn) Đăng nhập Docker Hub nếu kho chứa (repo) của bạn là PRIVATE
+            echo "${{ secrets.DOCKERHUB_TOKEN }}" | docker login -u ${{ secrets.DOCKERHUB_USERNAME }} --password-stdin
             
-            # Pull new images and restart
+            # Kéo (pull) bản cập nhật image mới nhất từ Docker Hub về máy
             docker compose -f docker-compose.prod.yml pull
+            
+            # Tái khởi động lại toàn bộ hệ thống bằng các image mới
             docker compose -f docker-compose.prod.yml up -d
