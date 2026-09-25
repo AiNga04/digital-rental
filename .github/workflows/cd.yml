@@ -22,7 +22,7 @@ concurrency:
 jobs:
   deploy:
     runs-on: ubuntu-latest
-    environment: production
+    environment: Production
     # Chỉ chạy deploy nếu là do người dùng kích hoạt bằng tay hoặc CI (Build) vừa xong và không bị lỗi
     if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
 
