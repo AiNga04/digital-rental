@@ -11,6 +11,17 @@ spring:
       host: ${REDIS_HOST}
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD}
+  mail:
+    host: ${MAIL_HOST:smtp.gmail.com}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
   flyway:
     enabled: false
     baseline-on-migrate: ${FLYWAY_BASELINE_ON_MIGRATE:false}
@@ -40,11 +51,11 @@ app:
     base-url: ${APP_ACTIVATION_BASE_URL}
     jwt-secret: ${APP_ACTIVATION_JWT_SECRET}
   mail:
-    provider: resend
-    from: ${APP_MAIL_FROM}
-    admin: ${APP_MAIL_ADMIN}
+    provider: ${APP_MAIL_PROVIDER:smtp}
+    from: ${APP_MAIL_FROM:LensHub <adminlenshub@gmail.com>}
+    admin: ${APP_MAIL_ADMIN:adminlenshub@gmail.com}
     resend:
-      api-key: ${RESEND_API_KEY}
+      api-key: ${RESEND_API_KEY:}
   storage:
     minio:
       internal-endpoint: ${MINIO_INTERNAL_ENDPOINT}

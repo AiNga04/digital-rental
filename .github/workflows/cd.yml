@@ -71,4 +71,5 @@ jobs:
             sudo docker compose -f docker-compose.prod.yml pull
             
             # Tái khởi động lại toàn bộ hệ thống bằng các image mới (dùng sudo)
-            sudo docker compose -f docker-compose.prod.yml up -d
+            sudo docker compose -f docker-compose.prod.yml up -d --force-recreate frontend backend
+            sudo docker compose -f docker-compose.prod.yml restart nginx

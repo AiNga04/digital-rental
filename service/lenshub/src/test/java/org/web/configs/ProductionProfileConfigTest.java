@@ -43,11 +43,10 @@ class ProductionProfileConfigTest {
     }
 
     @Test
-    void usesResendWithoutRequiringSmtpCredentials() {
-        assertProperty("app.mail.provider", "resend");
-        assertProperty("app.mail.resend.api-key", "${RESEND_API_KEY}");
-        assertNull(property("spring.mail.username"));
-        assertNull(property("spring.mail.password"));
+    void configuresMailProviderAndCredentials() {
+        assertProperty("app.mail.provider", "${APP_MAIL_PROVIDER:smtp}");
+        assertProperty("spring.mail.username", "${MAIL_USERNAME}");
+        assertProperty("spring.mail.password", "${MAIL_PASSWORD}");
     }
 
     private void assertProperty(String name, String expected) {
