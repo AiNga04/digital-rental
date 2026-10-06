@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react";
 import { RegisterForm } from "@/components/auth/RegisterForm";
 import Routers from "@/constants/routers";
 import { AuthPageShell } from "@/components/auth/AuthPageShell";
@@ -14,7 +15,9 @@ export default function RegisterPage() {
       backHref={Routers.LOGIN}
       backLabel="Quay lại đăng nhập"
     >
-      <RegisterForm />
+      <Suspense fallback={null}>
+        <RegisterForm />
+      </Suspense>
     </AuthPageShell>
   );
 }

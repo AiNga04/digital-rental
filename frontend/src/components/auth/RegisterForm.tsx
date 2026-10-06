@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
-import { Eye, EyeOff } from "lucide-react";
+import { Eye, EyeOff, Loader2 } from "lucide-react";
 import Image from "next/image";
 
 import { Button } from "@/components/ui/button";
@@ -18,7 +18,27 @@ import { startGoogleOAuth } from "@/lib/google-oauth";
 
 export function RegisterForm() {
   const [showPassword, setShowPassword] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("triggerGoogle") === "true") {
+      const url = new URL(window.location.href);
+      url.searchParams.delete("triggerGoogle");
+      window.history.replaceState({}, "", url.toString());
+
+      try {
+        startGoogleOAuth();
+      } catch (error) {
+        toast.error(
+          error instanceof Error
+            ? error.message
+            : "Không thể mở đăng ký Google",
+        );
+      }
+    }
+  }, [searchParams]);
 
   const {
     register,
@@ -56,10 +76,15 @@ export function RegisterForm() {
   };
 
   const handleGoogleAuth = () => {
+    if (isGoogleLoading) return;
+    setIsGoogleLoading(true);
     try {
       startGoogleOAuth();
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : "Không thể mở đăng ký Google");
+      setIsGoogleLoading(false);
+      toast.error(
+        error instanceof Error ? error.message : "Không thể mở đăng ký Google",
+      );
     }
   };
 
@@ -185,15 +210,20 @@ export function RegisterForm() {
       <div className="grid grid-cols-2 gap-3">
         <Button
           type="button"
+          disabled={isGoogleLoading || isSubmitting}
           onClick={handleGoogleAuth}
           className="h-10 w-full justify-center gap-2 rounded-xl border border-zinc-200 bg-white text-xs font-medium text-zinc-800 shadow-none hover:bg-zinc-50"
         >
-          <Image
-            src="https://www.svgrepo.com/show/475656/google-color.svg"
-            width={18}
-            height={18}
-            alt="Google"
-          />
+          {isGoogleLoading ? (
+            <Loader2 className="h-4 w-4 animate-spin text-zinc-500" />
+          ) : (
+            <Image
+              src="https://www.svgrepo.com/show/475656/google-color.svg"
+              width={18}
+              height={18}
+              alt="Google"
+            />
+          )}
           Google
         </Button>
         <Button
